@@ -98,23 +98,25 @@
             checked
           />
         </div>
+        <div class="inputcheckbox" id="entropyTimeCheckbox">
+          <label for="scales">Entropy vs Time (P=0.5)</label>
+          <input
+            type="checkbox"
+            id="entropyTimeCheck"
+            name="scales"
+            onchange="showHideEntropyVsTime()"
+            checked
+          />
+        </div>
         <div class="inputcheckbox" id="coinDisplayCheckbox">
           <label for="scales">Coin Display</label>
           <input
             type="checkbox"
-            id="headsTimeCheck"
+            id="coinDisplayCheck"
             name="scales"
             onchange="showHideCoinDisplay()"
             checked
           />
-        </div>
-        <div class="inputcheckbox">
-          <label for="scales">Entropy vs Time</label>
-          <input type="checkbox" id="entropyTimeCheck" name="scales" />
-        </div>
-        <div class="inputcheckbox">
-          <label for="scales">Biased Entropy vs Time</label>
-          <input type="checkbox" id="biasedEntropyTimeCheck" name="scales" />
         </div>
       </div>
     </div>
@@ -133,8 +135,9 @@
       </script>
       <!-- Create a smaller canvas element to render the chart -->
       <div>
-        <canvas id="myChart" width="640" height="360"></canvas>
-        <canvas id="myChart2" width="640" height="360"></canvas>
+        <canvas id="myChart" width="480" height="270"></canvas>
+        <canvas id="myChart2" width="480" height="270"></canvas>
+        <canvas id="myChart3" width="480" height="270"></canvas>
       </div>
 
       <script>

@@ -1,5 +1,3 @@
-// coin_flip.js
-
 // Default value for the variable
 let control_status = "Awaiting first input";
 let play_pause = "Play"; // Describes state of button, not of simulation
@@ -14,15 +12,19 @@ let coinStates = []; // true for heads, false for tails
 let currentHeads = 0;
 let currentInterval = 0;
 let currentlyPlaying = false;
+let currentEntropy = 0; // Entropy doesn't 'start' at 0, must update before first tick
 
 let data1 = []; // Data/Options for line chart
 let options1 = [];
 let data2 = []; // Data/Options for bar chart
 let options2 = [];
+let data3 = []; // Data/Options for bar chart
+let options3 = [];
 
 // Variables for whether charts are visible
 let headsVsTimeVisible = true;
 let headsHistogramVisible = true;
+let entropyVsTimeVisible = true;
 let coinDisplayVisible = true;
 
 // Function to update the control_status variable
@@ -116,6 +118,7 @@ function makeChart() {
   // Get the canvas elements
   const ctx = document.getElementById("myChart").getContext("2d");
   const ctx2 = document.getElementById("myChart2").getContext("2d");
+  const ctx3 = document.getElementById("myChart3").getContext("2d");
 
   // Data for the chart (replace this with your data)
   data1 = {
@@ -146,7 +149,21 @@ function makeChart() {
       },
     ],
   };
-
+  
+  // Data for the chart (replace this with your data)
+  data3 = {
+    labels: [],
+    datasets: [
+      {
+        type: "line",
+        data: [], // Replace with your dataset values
+        backgroundColor: "rgba(75, 192, 192, 0.2)", // Color for the bars
+        borderColor: "rgba(75, 192, 192, 1)", // Border color for the bars
+        borderWidth: 1, // Border width for the bars
+      },
+    ],
+  };
+  
   // Configuration options for the chart
   const options1 = {
     responsive: false, // Make the chart non-responsive
@@ -182,6 +199,12 @@ function makeChart() {
           display: true,
           text: "Number of Intervals",
         },
+        ticks: {
+          stepSize: 1, // This makes sure the y-axis counts in whole numbers
+          callback: function (value) {
+            return Number.isInteger(value) ? value : null; // Display only integer values
+          },
+        },
       },
       x: {
         type: "linear",
@@ -191,6 +214,30 @@ function makeChart() {
         title: {
           display: true,
           text: "Heads",
+        },
+      },
+    },
+    animation: false,
+    plugins: {
+      legend: {
+        display: false, // Hide the legend
+      },
+    },
+  };
+
+  // Configuration options for the chart
+  const options3 = {
+    responsive: false, // Make the chart non-responsive
+    maintainAspectRatio: true, // Maintain aspect ratio
+    scales: {
+      y: {
+        type: "linear",
+        position: "left",
+        min: 0,
+        max: num_coins,
+        title: {
+          display: true,
+          text: "Entropy (S/KB)",
         },
       },
     },
@@ -215,6 +262,13 @@ function makeChart() {
     data: data2,
     options: options2,
   });
+
+  // Create a new Chart instance
+  const myChart3 = new Chart(ctx3, {
+    type: "line", // Specify the chart type (bar, line, pie, etc.)
+    data: data3,
+    options: options3,
+  });
 }
 
 function showCoins() {
@@ -227,6 +281,7 @@ function showCoins() {
     setUpCoins();
     // Call simulateCoinFlip every second for demonstration purposes
     updateCoinDisplay();
+    updateEntropyValue();
     updateChart();
     setInterval(simulateCoinFlip, 300);
   });
@@ -293,19 +348,24 @@ function simulateCoinFlip() {
   // Update the display
   currentInterval++;
   updateCoinDisplay();
+  updateEntropyValue();
   updateChart();
 }
 
 function updateChart() {
   console.log("updateChart");
   // Get the chart instances
-  const chart = Chart.getChart("myChart");
-  const chart2 = Chart.getChart("myChart2");
+  const chart = Chart.getChart("myChart"); // heads over interval
+  const chart2 = Chart.getChart("myChart2"); // instances over heads
+  const chart3 = Chart.getChart("myChart3"); // entropy over interval
 
   if (chart.data.labels.length >= 100) {
     chart.data.labels.shift();
     chart.data.datasets[0].data.shift();
-  }
+    // Shift the entropy graph too
+    chart3.data.labels.shift();
+    chart3.data.datasets[0].data.shift();
+  }  
 
   if (!chart2.data.labels.includes(currentHeads)) {
     // If the label doesn't exist, add a new label and set the data to 1
@@ -332,9 +392,14 @@ function updateChart() {
   chart.data.labels.push(currentInterval);
   chart.data.datasets[0].data.push(currentHeads);
 
+  // Add the new data point to the line chart (myChart)
+  chart3.data.labels.push(currentInterval);
+  chart3.data.datasets[0].data.push(currentEntropy);
+
   // Update both charts
   chart.update();
   chart2.update();
+  chart3.update();
 }
 
 function showHideHeadsVsTime() {
@@ -363,6 +428,19 @@ function showHideHeadsHistogram() {
   }
 }
 
+function showHideEntropyVsTime() {
+  // Toggle button logic
+  const lineChart = document.getElementById("myChart3");
+
+  entropyVsTimeVisible = !entropyVsTimeVisible;
+
+  if (entropyVsTimeVisible) {
+    lineChart.style.display = "block";
+  } else {
+    lineChart.style.display = "none";
+  }
+}
+
 function showHideCoinDisplay() {
   // Toggle button logic
   const coinContainer = document.getElementById("coinContainer");
@@ -386,6 +464,7 @@ function resetChart() {
   // Get the chart instances
   const chart = Chart.getChart("myChart");
   const chart2 = Chart.getChart("myChart2");
+  const chart3 = Chart.getChart("myChart3");
 
   // Set labels and data to blank
   chart.data.labels = [];
@@ -395,11 +474,16 @@ function resetChart() {
   chart2.data.labels = [];
   chart2.data.datasets[0].data = [];
   chart2.options.scales.x.max = num_coins;
+  // Set labels and data to blank
+  chart3.data.labels = [];
+  chart3.data.datasets[0].data = [];
+  chart3.options.scales.y.max = calculateEntropy(num_coins, Math.floor(num_coins / 2));
 
   currentHeads = num_heads;
   currentInterval = 0;
 
   updateCoinDisplay();
+  updateEntropyValue();
 
   // Add starting data point
   // If this function is called because of a parameter
@@ -413,6 +497,7 @@ function resetChart() {
   // Update both charts
   chart.update();
   chart2.update();
+  chart3.update();
 }
 
 // Function to update the display based on coin states
@@ -420,12 +505,11 @@ function updateCoinDisplay() {
   console.log("updateCoinDisplay");
   let coinContainer = document.getElementById("coinContainer");
   let currentHeadsDisplay = document.getElementById("currentHeadsDisplay");
-  let currentIntervalDisplay = document.getElementById(
-    "currentIntervalDisplay"
-  );
+  let currentIntervalDisplay = document.getElementById("currentIntervalDisplay");
   coinContainer.innerHTML = ""; // Clear previous content
 
-  const coinsPerRow = 22; // Adjust this number based on your requirement
+  // Calculate the number of coins per row as the floor of the square root of the total number of coins
+  const coinsPerRow = Math.ceil(Math.sqrt(num_coins));
 
   for (let i = 0; i < coinStates.length; i += coinsPerRow) {
     // Create a row div
@@ -435,7 +519,15 @@ function updateCoinDisplay() {
     for (let j = i; j < i + coinsPerRow && j < coinStates.length; j++) {
       // Create a coin div
       let coin = document.createElement("div");
-      coin.className = "coin";
+      // coin.className = "coin";
+      if (num_coins < 601
+      ) {
+        coin.className = "coin";
+      } else if (num_coins < 2602) {
+        coin.className = "smallcoin";
+      } else {
+        coin.className = "verysmallcoin";
+      }
 
       if (coinStates[j]) {
         coin.style.backgroundColor = "blue"; // Heads is blue
@@ -451,10 +543,30 @@ function updateCoinDisplay() {
     coinContainer.appendChild(row);
   }
 
-  currentHeadsDisplay.innerHTML =
-    "<div>Current Heads: " + currentHeads + "</div>";
-  currentIntervalDisplay.innerHTML =
-    "<div>Current Interval: " + currentInterval + "</div>";
+  currentHeadsDisplay.innerHTML = "<div>Current Heads: " + currentHeads + "</div>";
+  currentIntervalDisplay.innerHTML = "<div>Current Interval: " + currentInterval + "</div>";
+}
+
+function factorial(n) { 
+  let ans = 1; 
+  if(n === 0)
+      return 1;
+  for (let i = 2; i <= n; i++) 
+      ans = ans * i; 
+  return ans; 
+}
+
+function calculateEntropy(N, M) {
+  // N = # of coins = num_coins
+  // M = # of heads = currentHeads
+  // omega = (N!) / ((N-M)! * M!)
+  // Entropy = ln(omega)
+  let omega = factorial(N) / (factorial(N - M) * factorial(M))
+  return Math.log(omega);
+}
+
+function updateEntropyValue() {
+  currentEntropy = calculateEntropy(num_coins, currentHeads);
 }
 
 // Functions that should only be available once the page has loaded
@@ -500,4 +612,6 @@ document.addEventListener("DOMContentLoaded", function () {
       mainBlock.style.marginLeft = "250px";
     }
   });
+
+  resetChart();
 });
